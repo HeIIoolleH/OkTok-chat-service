@@ -1,0 +1,45 @@
+// body {
+//   background: linear-gradient(45deg,#02ddff, #ffffff);
+//   background-size: cover;
+//   background-repeat: no-repeat;
+//   width: 100vw;
+//   height: 100vh;
+// }
+
+.chatService {
+  display: flex;
+  justify-content: center;
+  background: linear-gradient(45deg,#02ddff, #ffffff);
+  background-size: cover;
+  background-repeat: no-repeat;
+  width: 100vw;
+  height: 100vh;
+}
+.chatContent{
+  margin-top: 80px;
+  margin-bottom: 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 660px;
+  height: 1050px;
+  padding:20px;
+  background-color: #ffe68c;
+  border-radius: 30px;
+}
+.chatServiceTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 50px;
+  font-weight: bold;
+  // margin-bottom: 50px;
+}
+
+.dragonBallImg{
+  width: 10%;
+  margin: 20px;
+  cursor: pointer;
+}

@@ -1,0 +1,27 @@
+.savingData {
+    display: flex;
+}
+
+.chat-room-button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    padding:20px;
+    background-color: #ff8e6e;;
+    border-radius: 8px;
+    color:white;
+    font-weight: 600;
+    cursor: pointer;
+    margin: 15% 0;
+}
+
+.chat-room-button:hover {
+    background: #a6089e;
+    transition: 0.3s ease-out;
+  }
+
+.chat-room-button:not(:hover) {
+    transition: 0.5s ease-out;
+}
+

@@ -1,14 +1,8 @@
 // controller 불러오기
-const createUser = require('./controller/createUser.js');
-const getMsgs = require('./controller/getMsgs.js');
-const getUsers = require('./controller/getUsers.js');
-const createMsg = require('./controller/createMsg.js')
-
-
-
-
-
-
+const createUser = require('./controller/createUser');
+const getMsgs = require('./controller/getMsgs');
+const getUsers = require('./controller/getUsers');
+const createMsg = require('./controller/createMsg');
 
 
 // http 접속을 위한 cor 옵션 넣기
@@ -41,19 +35,21 @@ const admin = require('firebase-admin');
 
 
 
-
-
 admin.initializeApp({
-  config: {
-    apiKey: "AIzaSyAqCiD3qWXYyz2btOrUnhoO_e-rB6BzUVY",
-    authDomain: "oktok-5bca4.firebaseapp.com",
-    projectId: "oktok-5bca4",
-    storageBucket: "oktok-5bca4.appspot.com",
-    messagingSenderId: "934421356238",
-    appId: "1:934421356238:web:a75aa2807fb9608a0bba9f",
-    measurementId: "G-QGYKCGEB06"
-  }
+  credential: admin.credential.cert('./service_save/oktok-5bca4-firebase-adminsdk-bmkna-199a9503ab.json'),
 });
+
+// admin.initializeApp({
+//   config: {
+//     apiKey: "AIzaSyAqCiD3qWXYyz2btOrUnhoO_e-rB6BzUVY",
+//     authDomain: "oktok-5bca4.firebaseapp.com",
+//     projectId: "oktok-5bca4",
+//     storageBucket: "oktok-5bca4.appspot.com",
+//     messagingSenderId: "934421356238",
+//     appId: "1:934421356238:web:a75aa2807fb9608a0bba9f",
+//     measurementId: "G-QGYKCGEB06"
+//   }
+// });
 
 
 
@@ -79,24 +75,52 @@ app.get('/',function(req,res){
 const room1 = io.of('/room1');
 const room2 = io.of('/room2');
 const room3 = io.of('/room3');
+const connectionUserIdList1 = [];
+const connectionUserIdList2 = [];
+const connectionUserIdList3 = [];
 
 const tokens = [];
 
+
 // ********************** room 1 *********************************
 room1.on('connection', async(socket) => {
-  const roomNumber1 = 1
-  const chatDataAll = await getMsgs(roomNumber1);
+  const roomNumber = 1
+  const chatDataAll = await getMsgs(roomNumber);
 
   console.log('room1 네임스페이스에 접속');
 
-  socket.on('forceDisconnect', function() {
+  await socket.on('forceDisconnect', async(userId) => {
     console.log('room1 네임스페이스 접속 해제');
+    var index = connectionUserIdList1.indexOf(userId); 
+
+    if (index > -1) {
+      connectionUserIdList1.splice(index, userId);
+    }
+    room1.emit('userIdList',connectionUserIdList1);
     socket.disconnect();
   });
+
   
+
+  await socket.on('userId',async (userId)=>{
+    if(connectionUserIdList1.includes(userId)){
+    }else{
+      await connectionUserIdList1.push(userId);
+    }
+    await room1.emit('userIdList',connectionUserIdList1);
+  })
+  
+  socket.emit('joinRoom', chatDataAll);
+  
+  socket.on('chatMessage', (msg) =>{
+    console.log('메세지 작성');
+    room1.emit('chatMessage', msg);
+    createMsg(msg);
+  })
+  
+
   socket.on('postToken',async(token) => {
-    if(tokens.includes(token)){
-      console.log("1231231231231231231");
+    if(tokens.includes(token) || token == ''){
       return;
     }else{
       const addToken = (token) => {
@@ -104,32 +128,29 @@ room1.on('connection', async(socket) => {
       };
       await addToken(token);
     };
+  });
+  console.log(tokens);
+
+
+  socket.on('pushMsg',async(pushMsgNoneToken) =>{
+    const pushMsg = pushMsgNoneToken;
+
+    const addTokens = () =>{
+      pushMsg.tokens = tokens;
+    }
+    await addTokens();
+    
+
+    console.log('pushmsg : ', pushMsg);
+    admin.messaging().sendMulticast(pushMsg)
+    .then((response) => {
+      // Response is a message ID string.
+      console.log('Successfully sent message:', response);
+    })
+    .catch((error) => {
+      console.log('Error sending message:', error);
+    });
   })
-
-  socket.emit('joinRoom', chatDataAll);
-
-  socket.on('chatMessage', (msg) =>{
-    room1.emit('chatMessage', msg);
-    createMsg(msg);
-  })
-
-  // socket.on('pushMsg',async(pushMsgNoneToken) =>{
-  //   const pushMsg = pushMsgNoneToken;
-  //   const addTokens = () =>{
-  //     pushMsg.tokens = tokens;
-  //   }
-  //   await addTokens(pushMsgNoneToken);
-
-  //   console.log('pushmsg : ', pushMsg);
-  //   admin.messaging().sendMulticast(pushMsg)
-  //   .then((response) => {
-  //     // Response is a message ID string.
-  //     console.log('Successfully sent message:', response);
-  //   })
-  //   .catch((error) => {
-  //     console.log('Error sending message:', error);
-  //   });
-  // })
 
 })
 
@@ -137,94 +158,140 @@ room1.on('connection', async(socket) => {
 
 // ********************** room 2 *********************************
 room2.on('connection', async(socket) => {
-  const roomNumber2 = 2
-  const chatDataAll = await getMsgs(roomNumber2);
+  const roomNumber = 2
+  const chatDataAll = await getMsgs(roomNumber);
 
   console.log('room2 네임스페이스에 접속');
 
-  socket.on('forceDisconnect', function() {
+  await socket.on('forceDisconnect', async(userId) => {
     console.log('room2 네임스페이스 접속 해제');
+    var index = connectionUserIdList2.indexOf(userId); 
+
+    if (index > -1) {
+      connectionUserIdList2.splice(index, userId);
+    }
+    room2.emit('userIdList',connectionUserIdList2);
     socket.disconnect();
   });
+
   
-  socket.on('postToken',(token) => {
-    if(tokens.includes(token)){
-      return;
+
+  await socket.on('userId',async (userId)=>{
+    if(connectionUserIdList2.includes(userId)){
     }else{
-      tokens.push(token)
-    };
+      await connectionUserIdList2.push(userId);
+    }
+    await room2.emit('userIdList',connectionUserIdList2);
   })
-
+  
   socket.emit('joinRoom', chatDataAll);
-
+  
   socket.on('chatMessage', (msg) =>{
+    console.log('메세지 작성');
     room2.emit('chatMessage', msg);
     createMsg(msg);
   })
+  
 
+  socket.on('postToken',async(token) => {
+    if(tokens.includes(token) || token == ''){
+      return;
+    }else{
+      const addToken = (token) => {
+        tokens.push(token)
+      };
+      await addToken(token);
+    };
+  });
+  console.log(tokens);
 
-  // socket.on('pushMsg',(pushMsgNoneToken) =>{
-  //   const pushMsg = pushMsgNoneToken;
-  //   const addTokens = () =>{
-  //     pushMsg.tokens = tokens;
-  //   }
-  //   addTokens(pushMsgNoneToken);
-  //   admin.messaging().sendMulticast(pushMsg)
-  //   .then((response) => {
-  //     // Response is a message ID string.
-  //     console.log('Successfully sent message:', response);
-  //   })
-  //   .catch((error) => {
-  //     console.log('Error sending message:', error);
-  //   });
-  // })
+  socket.on('pushMsg',async(pushMsgNoneToken) =>{
+    const pushMsg = pushMsgNoneToken;
+    const addTokens = () =>{
+      pushMsg.tokens = tokens;
+    }
+    await addTokens();
+    
+    console.log('pushmsg : ', pushMsg);
+    admin.messaging().sendMulticast(pushMsg)
+    .then((response) => {
+      // Response is a message ID string.
+      console.log('Successfully sent message:', response);
+    })
+    .catch((error) => {
+      console.log('Error sending message:', error);
+    });
+  })
 
 })
 
 
   // ********************** room 3 *********************************
   room3.on('connection', async(socket) => {
-    const roomNumber3 = 3
-    const chatDataAll = await getMsgs(roomNumber3);
+    const roomNumber = 3
+    const chatDataAll = await getMsgs(roomNumber);
   
     console.log('room3 네임스페이스에 접속');
   
-    socket.on('forceDisconnect', function() {
+    await socket.on('forceDisconnect', async(userId) => {
       console.log('room3 네임스페이스 접속 해제');
+      var index = connectionUserIdList3.indexOf(userId); 
+  
+      if (index > -1) {
+        connectionUserIdList3.splice(index, userId);
+      }
+      room3.emit('userIdList',connectionUserIdList3);
       socket.disconnect();
     });
+  
     
-    socket.on('postToken',(token) => {
-      if(tokens.includes(token)){
-        return;
+  
+    await socket.on('userId',async (userId)=>{
+      if(connectionUserIdList3.includes(userId)){
       }else{
-        tokens.push(token)
-      };
+        await connectionUserIdList3.push(userId);
+      }
+      await room3.emit('userIdList',connectionUserIdList3);
     })
-  
+    
     socket.emit('joinRoom', chatDataAll);
-  
+    
     socket.on('chatMessage', (msg) =>{
+      console.log('메세지 작성');
       room3.emit('chatMessage', msg);
       createMsg(msg);
     })
+    
   
-
-    // socket.on('pushMsg',(pushMsgNoneToken) =>{
-    //   const pushMsg = pushMsgNoneToken;
-    //   const addTokens = () =>{
-    //     pushMsg.tokens = tokens;
-    //   }
-    //   addTokens(pushMsgNoneToken);
-    //   admin.messaging().sendMulticast(pushMsg)
-    //   .then((response) => {
-    //     // Response is a message ID string.
-    //     console.log('Successfully sent message:', response);
-    //   })
-    //   .catch((error) => {
-    //     console.log('Error sending message:', error);
-    //   });
-    // })
+    socket.on('postToken',async(token) => {
+      if(tokens.includes(token) || token == ''){
+        return;
+      }else{
+        const addToken = (token) => {
+          tokens.push(token)
+        };
+        await addToken(token);
+      };
+    });
+    console.log(tokens);
+  
+    socket.on('pushMsg',async(pushMsgNoneToken) =>{
+      const pushMsg = pushMsgNoneToken;
+      const addTokens = () =>{
+        pushMsg.tokens = tokens;
+      }
+      await addTokens();
+      
+      console.log('pushmsg : ', pushMsg);
+      admin.messaging().sendMulticast(pushMsg)
+      .then((response) => {
+        // Response is a message ID string.
+        console.log('Successfully sent message:', response);
+      })
+      .catch((error) => {
+        console.log('Error sending message:', error);
+      });
+    })
   
   })
 
@@ -252,6 +319,19 @@ app.post('/user-create', (req, res) => {
   }
 });
 
+// const isUserConnection = true;
+
+// app.post('/get/connectingUser', (req,res) => {
+//   (async() => {
+//     if(connectionUserIdList.includes(req.body)){
+//       isUserConnection = true;
+//     }else{
+//       await connectionUserIdList.push(req.body);
+//       isUserConnection = false;
+//     }
+//   })
+// })
+// console.log(connectionUserIdList);
 
 
 // // ***** terminal 명령어를 통한 DB Table 생성 *****

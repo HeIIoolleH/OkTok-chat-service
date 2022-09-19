@@ -1,5 +1,5 @@
 import React from 'react';
-import './ChatRoomList.css'
+import './ChatRoomList.scss'
 // import { getMessaging, onMessage } from "firebase/messaging";
 
 

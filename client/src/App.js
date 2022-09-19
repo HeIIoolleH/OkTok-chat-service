@@ -3,62 +3,71 @@ import './App.scss';
 import ChatRoom from './component/ChatRoom/ChatRoom';
 import ChatRoomList from './component/ChatRoomList/ChatRoomList';
 import Login from './component/Login/Login';
-// import { initializeApp } from "firebase/app";
-// import { getMessaging, getToken, onMessage} from "firebase/messaging";
 
-
-
-// const firebaseConfig = {
-//   apiKey: "AIzaSyAqCiD3qWXYyz2btOrUnhoO_e-rB6BzUVY",
-//   authDomain: "oktok-5bca4.firebaseapp.com",
-//   projectId: "oktok-5bca4",
-//   storageBucket: "oktok-5bca4.appspot.com",
-//   messagingSenderId: "934421356238",
-//   appId: "1:934421356238:web:a75aa2807fb9608a0bba9f",
-//   measurementId: "G-QGYKCGEB06"
-// };
-
-// const app = initializeApp(firebaseConfig);
+import { getMessaging, onMessage } from "firebase/messaging";
+import { initializeApp } from "firebase/app";
+import Toast from 'react-bootstrap/Toast';
+// import 'bootstrap/dist/css/bootstrap.min.css';
 
 
 
 
-// const messaging = getMessaging(app);
-
-
-
-// getToken(messaging, { vapidKey: 'BF04eeBPZxwgIoaIX7Q4U7HoAav-8SQKO848S1xRWAFezrRXFs9GhQE66j2d8AMTZQJP31DyFwRQlJFE3F_eAz8' })
-//   .then((currentToken) => {
-//     if (currentToken) {
-//       // Send the token to your server and update the UI if necessary
-//       // ...
-//       console.log("currentToken :",currentToken);
-//     } else {
-//       // Show permission request UI
-//       console.log('No registration token available. Request permission to generate one.');
-//       // ...
-//     }
-//   }).catch((err) => {
-//     console.log('An error occurred while retrieving token. ', err);
-//     // ...
-//   });
+const firebaseConfig = {
+    apiKey: "AIzaSyAqCiD3qWXYyz2btOrUnhoO_e-rB6BzUVY",
+    authDomain: "oktok-5bca4.firebaseapp.com",
+    projectId: "oktok-5bca4",
+    storageBucket: "oktok-5bca4.appspot.com",
+    messagingSenderId: "934421356238",
+    appId: "1:934421356238:web:a75aa2807fb9608a0bba9f",
+    measurementId: "G-QGYKCGEB06"
+  };
   
-//   onMessage(messaging, (payload) => {
-//     console.log('Message received. ', payload);
+initializeApp(firebaseConfig);
 
-//     // ...
-//   });
-  
-  
+const messaging = getMessaging();
 
-  const App = () => {
+Notification.requestPermission().then((permission) => {
+  if (permission === 'granted') {
+    console.log('Notification permission granted.');}})
 
 
-    const [userData, setUserData] = useState([]);
-    const [userId, setUserId] = useState(0);
-    const [isLogin, setIsLogin] = useState(false);
-    const [enterChatRoom, setEnterChatRoom] = useState(0);
     
+    
+const App = () => {
+  
+  const [userDatas, setUserDatas] = useState([]);
+  const [userId, setUserId] = useState(0);
+  const [isLogin, setIsLogin] = useState(false);
+  const [enterChatRoom, setEnterChatRoom] = useState(0);
+  const [pushMsg, setPushMsg] = useState({});
+  const [showMessage, setShowMessage] =useState(false);
+  
+  
+
+  const findMsgUserId = (userName) =>{
+    const pushMsgUserId = userDatas?.find(user => user.user === userName)?.user_id;
+    console.log(pushMsgUserId);
+    return pushMsgUserId;
+  }
+
+  const onMessageListener = () =>
+    new Promise((resolve) => {
+      onMessage(messaging, (payload) => {
+        if(findMsgUserId(payload.notification.title) !== userId){
+
+          resolve(payload);
+          setPushMsg(payload.notification);
+          setShowMessage(true);
+        }
+      });
+  });
+  
+  const closeMessage = () => {
+    setShowMessage(false);
+  };
+
+  onMessageListener();
+
 
   
 
@@ -67,7 +76,7 @@ import Login from './component/Login/Login';
       <div className='chatContent'>
         <div className='chatServiceTitle'>
           <img className='dragonBallImg' src="https://play-lh.googleusercontent.com/qmkVTTKEO-GfvEMjMl-WEpYWNksq1BKiamPqq18A3qChLdazUHvyiCS1c0f_czDmVw"></img>
-          Welcome to OkTok
+            OkTok
           <img className='dragonBallImg' src="https://play-lh.googleusercontent.com/qmkVTTKEO-GfvEMjMl-WEpYWNksq1BKiamPqq18A3qChLdazUHvyiCS1c0f_czDmVw"></img>
         </div>
         <div>
@@ -77,11 +86,13 @@ import Login from './component/Login/Login';
           {
             (enterChatRoom === 1 || enterChatRoom === 2 || enterChatRoom === 3) ?
             <ChatRoom
-            userData={userData}
+            userDatas={userDatas}
             userId={userId} 
             roomId={enterChatRoom} 
+            isLogin={isLogin}
             setIsLogin={setIsLogin}
-            setEnterChatRoom={setEnterChatRoom}>
+            setEnterChatRoom={setEnterChatRoom}
+            messaging={messaging}>
               채팅방
             </ChatRoom>
           :
@@ -92,13 +103,25 @@ import Login from './component/Login/Login';
           </div>
           :
           <Login className='chatServiceBody'
-          userData={userData}
-          setUserData={setUserData}
+          userDatas={userDatas}
+          setUserDatas={setUserDatas}
           setUserId={setUserId}
           setIsLogin={setIsLogin}>
           </Login>
         }
         </div>
+      </div>
+      <div>
+        <Toast className='notification-msg'
+          show={showMessage} onClose={closeMessage} delay={300}>
+          <Toast.Header className="notification-msg-title">
+            <img className="notification-image" alt="" src="https://play-lh.googleusercontent.com/qmkVTTKEO-GfvEMjMl-WEpYWNksq1BKiamPqq18A3qChLdazUHvyiCS1c0f_czDmVw"/>
+            <strong> {pushMsg.title} </strong>
+          </Toast.Header>
+          <Toast.Body className='notification-msg-content'>
+            {pushMsg.body}
+          </Toast.Body>
+        </Toast>
       </div>
     </div>
   );

@@ -1,107 +1,117 @@
 import React, {useEffect, useRef, useState} from 'react';
 import { io } from "socket.io-client";
-import './ChatRoom.css'
+import './ChatRoom.scss';
+import Modal from '../Modals/UserListModal';
+import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
-
-// import { getMessaging, getToken, onMessage } from "firebase/messaging";
-// import { initializeApp } from "firebase/app";
-
-
-
-
-// import jQuery from 'jquery'
 
 
 const ChatRoom = (props) => {
-    // const firebaseConfig = {
-    //     apiKey: "AIzaSyAqCiD3qWXYyz2btOrUnhoO_e-rB6BzUVY",
-    //     authDomain: "oktok-5bca4.firebaseapp.com",
-    //     projectId: "oktok-5bca4",
-    //     storageBucket: "oktok-5bca4.appspot.com",
-    //     messagingSenderId: "934421356238",
-    //     appId: "1:934421356238:web:a75aa2807fb9608a0bba9f",
-    //     measurementId: "G-QGYKCGEB06"
-    //   };
-      
-    // const app = initializeApp(firebaseConfig);
 
-    // const messaging = getMessaging();
-    
-    
-    // onMessage(messaging, (payload) => {
-    //     console.log('Message received. ', payload);
-    //     // ...
-    // });
-
-    const userData = props.userData;
-    const userId = props.userId;
-    const setIsLogin = props.setIsLogin
-    const setEnterChatRoom = props.setEnterChatRoom;
-    const roomId = props.roomId;
+    const { userDatas, userId, setIsLogin, setEnterChatRoom, roomId, messaging} = props
     const divRef = useRef(null);
-
-
-
-    // 각 client에 대한 토큰값 부여 받기
+    // const [userId, setUserId] = useState(null);
+    const [userIdList, setUserIdList] = useState([]);
+    const [modalOpen, setModalOpen] = useState(false);
+    const [userList, setUserList] = useState([]);
+    const [token, setToken] = useState('');
 
 
     
+    const getUserList = (userIdList) => {
+        setUserList([])
+        userIdList.map( userId =>
+            setUserList(prevstate => prevstate.concat(userDatas?.find(user => Number(user.user_id) === Number(userId))?.user))
+            )
+    };
 
+    const openModal = () => {
+        setModalOpen(true);
+    };
 
-    // getToken(messaging, { vapidKey: 'BF04eeBPZxwgIoaIX7Q4U7HoAav-8SQKO848S1xRWAFezrRXFs9GhQE66j2d8AMTZQJP31DyFwRQlJFE3F_eAz8' })
-    // .then((currentToken) => {
-    //     if (currentToken) {
-    //         // Send the token to your server and update the UI if necessary
-    //         // ...
-    //         // console.log("currentToken :",currentToken);
-    //         socket.emit('postToken',(currentToken));
-    //     } else {
-    //         // Show permission request UI
-    //         console.log('No registration token available. Request permission to generate one.');
-    //         // ...
-    //     }
-    // }).catch((err) => {
-    //     console.log('An error occurred while retrieving token. ', err);
-    //     // ...
-    // });
-
+    const closeModal = () => {
+        setModalOpen(false);
+    };
 
 
     
     const socket = io.connect(`http://192.168.0.14:8001/room${roomId}`,
-        {transports : ['websocket']},
-        {path: '/socket.io'}
+    {transports : ['websocket']},
+    {path: '/socket.io'}
     );
     
     const [msgData, setMsgData] = useState([]);
     
-    socket.on('connection',()=> {
-        console.log("connection server");     
-    })
+
+
+    // 각 client에 대한 토큰값 부여 받기
+    getToken(messaging, { vapidKey: 'BF04eeBPZxwgIoaIX7Q4U7HoAav-8SQKO848S1xRWAFezrRXFs9GhQE66j2d8AMTZQJP31DyFwRQlJFE3F_eAz8' })
+    .then(async(currentToken) => {
+        if (currentToken) {
+            // Send the token to your server and update the UI if necessary
+            // ...
+            // console.log("currentToken :",currentToken);
+            await setToken(currentToken);
+            // console.log("token :",token);
+            socket.emit('postToken',(token));
+        } else {
+            // Show permission request UI
+            console.log('No registration token available. Request permission to generate one.');
+            // ...
+        }
+    }).catch((err) => {
+        console.log('An error occurred while retrieving token. ', err);
+        // ...
+    });
+    
+
+
+
+    // userId 보내기
+    const sendUserId = () =>{
+        socket.emit('userId',userId); 
+    };
+
+    useEffect(()=>{
+        setTimeout(() => {
+            sendUserId();
+        }, 500)
+    },[])
 
 
     
+    // userId 받기
+    const getUserIdList = () =>{
+        socket.on('userIdList', function(userIdList){
+            setUserIdList(userIdList);
+            getUserList(userIdList)
+        })
+    };
+    
+    useEffect(() => {
+        getUserIdList()
+    },[]);
+    
 
-    
-    
+
+
+
+
     // socket 접속시 joinRoom으로 접속하여 chatdata 받기
     const takeDataSocket = () =>{
-        socket.on('joinRoom', function(data){
-            setMsgData(data);
+        socket.on('joinRoom', function(chatData){
+            setMsgData(chatData);
         });
-    }
+    };
 
     useEffect(() => {
         takeDataSocket();
         if(msgData.length !== 0){
-            socket.off('joinRoom')
+            socket.off('joinRoom');
         }
-    },[])
+    },[]);
     
-    
-    // useEffect(()=>{
 
-    // },[])
     
 
 
@@ -126,22 +136,14 @@ const ChatRoom = (props) => {
         await socket.on('chatMessage', function(data){
             if(data !== msgData){
                 setMsgData(prevstate => prevstate.concat(data));
+                socket.off('chatMessage');
             }
             else {
                 return;
             }
         })
 
-
-        divRef.current.scrollTo({
-            top: divRef.current.scrollHeight,
-            behavior:'smooth',
-        });
-
-        
-     
-
-        const userName =  findUserName(initialMsg);
+        const userName =  findMsgUserName(initialMsg);
         const pushMsg = {
             'notification': {
                 'body': initialMsg.msg,
@@ -149,24 +151,9 @@ const ChatRoom = (props) => {
                 }
         };
 
-        
         socket.emit('pushMsg', pushMsg);
-        
-        
-
-
-        // const serverKey = 'BF04eeBPZxwgIoaIX7Q4U7HoAav-8SQKO848S1xRWAFezrRXFs9GhQE66j2d8AMTZQJP31DyFwRQlJFE3F_eAz8'
-        
-        // await axios.post('https://fcm.googleapis.com/v1/projects/934421356238/messages:send',pushMsg, {
-        //     headers :{
-        //         'Content-Type': 'application/json',
-        //         'Authorization': 'key='+ serverKey
-        //     }
-        // });
-
-
     };
-  
+    
     const handleKeyPress = (e) => {
       // 눌려진 키가 enter면 handleCreate 호출
       if(e.key === 'Enter') {
@@ -174,30 +161,58 @@ const ChatRoom = (props) => {
       }
     };
 
+    useEffect(() => {
+        divRef.current.scrollTo({
+            top: divRef.current.scrollHeight,
+            behavior:'smooth',
+        });
+    },[msgData])
+
     
 
     // 소켓 연결 끊기
-    const disconnetSocket = () => {
-        socket.emit('forceDisconnect');
+    const disconnetSocket = async() => {
+        await socket.emit('forceDisconnect',userId);
     };
     
     // 유저이름 찾기
-    const findUserName = (chatData) =>{
-        const userName = userData?.find(user => Number(user.user_id) === Number(chatData.user_id))?.user;
+    const findMsgUserName = (chatData) =>{
+        const userName = userDatas?.find(user => Number(user.user_id) === Number(chatData.user_id))?.user;
         return userName
     }
     
+    // const findUserNameInRoom = (userId) => {
+    //     const userName = userDatas?.find(user => Number(user.user_id) === Number(userId))?.user;
+    //     return userName
+    // }
+
     // ChatRoomList로 돌아가는 함수
-    const retunList = () => {
+    const returnList = () => {
         setIsLogin(true);
         setEnterChatRoom(0);
     }
 
     return(
         <div>
-            <h1 className='title'>
-                OkTok Room{roomId}
-            </h1>
+            <div className='title'>
+                <div className='roomTitle'>
+                    OkTok Room{roomId}
+                </div>
+                {/* <div className='chat-name'>
+                    {findUserNameInRoom(userId)}님
+                </div> */}
+                <div className='userListModal' onClick={()=>{
+                    // sendUserId();
+                    openModal();
+                    }}>
+                    =
+                </div>
+                <Modal open={modalOpen} close={closeModal} header="Modal heading" 
+                roomId={roomId} 
+                userList={userList} 
+                returnList={returnList} 
+                disconnetSocket ={disconnetSocket}></Modal>
+            </div>
             <body className='chatroom'>
                 <div className="chat-room-wrapper" ref={divRef}>
                     {msgData.map((li,index)=>{
@@ -205,17 +220,14 @@ const ChatRoom = (props) => {
                             <div className="chat-content">
                                 {parseInt(li.user_id) === userId ?
                                     <div className='my-chat-wrapper'>
-                                        <div className='chat-name'>
-                                        {findUserName(li)}
-                                        </div>
                                         <div className='my-chat-box'>
                                             {li.msg}
                                         </div>
                                     </div>
                                     :                
                                     <div className='other-chat-wrapper'>
-                                        <div className='chat-name'>
-                                        {findUserName(li)}
+                                        <div className='other-chat-name'>
+                                        {findMsgUserName(li)}
                                         </div>
                                         <div className="other-chat-box">
                                             {li.msg}
@@ -228,16 +240,9 @@ const ChatRoom = (props) => {
                 </div>
             </body>
             <div className="bottom">
-                <input className='input-box' value={chatInput} onKeyPress={handleKeyPress} onChange={handleChange}/>
-                <div className='button' onClick={()=>handleCreate()}>
+                <input className='msg-input-box' value={chatInput} onKeyPress={handleKeyPress} onChange={handleChange}/>
+                <div className='send-msg-button' onClick={()=>handleCreate()}>
                     전송
-                </div>
-                <div className='button' onClick={()=> 
-                {disconnetSocket()
-                retunList()
-                }
-                }>
-                나가기
                 </div>
             </div>
         </div>
